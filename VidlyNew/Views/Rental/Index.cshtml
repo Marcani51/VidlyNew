@@ -1,0 +1,143 @@
+﻿@model dynamic
+@{
+    ViewBag.Title = "Rental List";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>List of Rentals</h2>
+
+<div class="button">
+    @Html.ActionLink("New Rental", "New", "Rental", null, new { @class = "btn btn-primary" })
+    <button class="btn btn-primary">Submit to Payment</button>
+</div>
+
+<table id="newrentals" class="table table-bordered table-hover" style="width:100%">
+    <thead>
+        <tr>
+            <th>Customer name</th>
+            <th>Date Rented</th>
+            <th>Date Returned </th>
+            <th>Movie name</th>
+            <th>Rental Price</th>
+            <th>Command</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+
+</table>
+
+@section scripts{
+    <script>
+        $(document).ready(function () {
+            var table = $("#newrentals").DataTable({
+                ajax: {
+                    url: "/api/newrentals/",
+                    method: "GET",
+                    dataSrc: ""
+                },
+                columns: [
+                    {
+                        data: "customer.name"
+                    },
+                    {
+                        data: "dateRented"
+                    },
+                    {
+                        data: "dateReturned",
+                        width:"25%",
+                        render: function (data, type, newrentals) {
+                            if (data == null)
+                                return "<div><input required id='dateReturned-id' type='date' class='form-control'>"
+                                    +"<button class='btn btn-primary js-submit1' data-returned-id=" + newrentals.id + ">Returned</button></div>";                                   
+                            return "<p id='dateReturned'>" + data + "</p>";
+                        }
+                    },
+                    {
+                        data: "movie.name"
+                    },
+                    {
+                        data: "movie.rentalPrice"
+                    },
+                    {
+                        data: "id",
+                        render: function (data, type, newrentals) {
+                            return "<input type=checkbox class='js-submit2' data-submit-id=" + data + "> Submit";
+                        }
+                    }
+                ]
+            });
+
+
+            //////// SUBMIT THE TEXT BOX INPUT try to see the data first in console log /////////////
+            $("#newrentals").on("click", ".js-submit1", function () {
+                var viewModel = {
+
+                };
+                const button = $(this);
+                const dateVal = button.siblings('input').val();
+               
+                bootbox.confirm("Are you sure to add return date?", function (result) {
+                    if (result) {
+                        $.ajax({
+                            url: "/api/newrentals/" + button.attr("data-returned-id"),
+                            method: "GET",                           
+                            success: function (data) {
+                                ///////////// blm fix //////////////////
+                               
+                                $.each(data, function (i, obj) {
+                                    
+                                    obj.dateReturned = dateVal;
+                                    viewModel.CustomersId = obj.id;
+                                    viewModel.DateReturned = obj.dateReturned;
+                                });                         
+                                $.ajax({
+                                    url: "/api/newrentals/" + button.attr("data-returned-id") + "/datere",
+                                    method: "PUT",
+                                    data: viewModel,
+                                    success: function () {
+                                        setInterval('location.reload()',100);
+                                    }
+                                });
+                            }
+                        }).done(function () {
+                            console.log("done");
+
+                        }).fail(function () {
+                            console.log("failed");
+                        });
+                    }
+                });
+            });
+
+            $('#newrentals tbody').on('click', '.js-submit2', function () {
+                if ($(this).hasClass('selected')) {
+                    $(this).removeClass('selected');
+
+                    toastr.error("Rental delist from invoice");
+                }
+                else {
+                    table.$('tr.selected').removeClass('selected');
+                    $(this).addClass('selected');
+                    toastr.success("Rental add to List Invoice");
+                }
+            });
+
+            $('#button').click(function () {
+                table.row('.selected').ajax({
+                    url: "/api/newrentals/" + $(this).attr("data-returned-id"),
+                    method: "GET",
+                    data: button.attr("data-returned-id"),
+                    success: function () {
+                        console.log("SUCCES sending");
+                    },
+                    fail: function () {
+                        console.log("somethi happen");
+                    }
+                });
+            });
+            
+        });
+    </script>
+}
+

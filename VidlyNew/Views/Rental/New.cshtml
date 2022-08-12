@@ -1,0 +1,187 @@
+﻿@model dynamic
+@{
+    ViewBag.Title = "New Rental Form";
+
+}
+
+<h2>New Rental Form</h2>
+<form id="NewRental">
+    <div class="form-group">
+        <label>Customer</label>
+        <div class="tt-container">
+            <input id="customer" name="customer" data-rule-validCustomer="true" required type="text" value="" class="form-control" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Movie</label>
+        <div class="tt-container">
+            <input id="movie" name="movie" data-rule-atLeastOneMovie type="text" value="" class="form-control" />
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 col-sm-4">
+            <ul id="movies" class="list-group"></ul>
+        </div>
+    </div>
+
+    <div class="button">
+        <button class="btn btn-primary">Submit Rental</button>
+    </div>
+
+    <div class="table">
+        <table id="rentals" class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>Current Customer name</th>
+                    <th>Membership Type</th>
+                    <th>Date Rented</th>
+                    <th>Date Returned</th>
+                    <th>Movie name</th>
+                    <th>Rental Price</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</form>
+
+@section scripts
+{
+    @Scripts.Render("~/bundles/jqueryval")
+
+    <script>
+        $(document).ready(function () {
+            var cusId;
+            var viewModel = {///untuk menampung viewmodel sementara pda server yang akan dikirim ke api
+
+                MoviesId: [] ////nama harus sama dengan yang ada di Api controller dan dto
+            };
+
+            /////untuk form customer//////////////
+            var customers = new Bloodhound({
+                datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
+                queryTokenizer: Bloodhound.tokenizers.whitespace,
+                remote: {
+                    url: '/api/customers?query=%QUERY',   ////mengambil data dari query GET api customer
+                    wildcard: '%QUERY'
+                }
+            });
+
+            $('#customer').typeahead({
+                highlight: true,    /////highlight
+                minLength: 2      ////minim char yg di type agar di autocomplete
+            }, {
+                name: 'customers',   ////ambil data dari
+                display: 'name',     ////// yang diambil
+                source: customers   ////dari object bloodhound
+            }).on("typeahead:select", function (e, customer) {  /////untuk responce setelah dipilih
+                viewModel.CustomersId = customer.id; ///disimpan untuk dikirim ke api  ////nama harus sama dengan yang ada di Api controller dan dto
+                cusId = customer.id;
+            });
+
+
+            /////////////////untuk form movie///////////////////
+            var movies = new Bloodhound({
+                datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
+                queryTokenizer: Bloodhound.tokenizers.whitespace,
+                //prefetch: {
+                //    url: '/api/movies', //// untuk memakai querry yg suda ada tanpa get request ke api
+                //  caches: false
+                //}
+                remote: {
+                    url: '/api/movies?query=%QUERY',   ////mengambil data dari query GET api movies
+                    wildcard: '%QUERY'
+                }
+            });
+
+            $('#movie').typeahead({
+                highlight: true,
+                minLength: 2
+            }, {
+                name: 'movies',
+                display: 'name',
+                source: movies
+            }).on("typeahead:select", function (e, movie) {  /////untuk responce setelah dipilih
+
+                $("#movies").append("<li class='list-group-item'>" + movie.name + " Rp. " + movie.rentalPrice + "</li>");
+
+                $("#movie").typeahead("val", "");
+
+                viewModel.MoviesId.push(movie.id); ////nama harus sama dengan yang ada di Api controller dan dto(MoviesId)
+            });
+
+            ///////////////////////////UNTUK SUBMIT FORM/////////////
+
+            $.validator.addMethod("validCustomer", function () {  //customer validation untuk membuat validasi sendiri
+                return viewModel.CustomersId && viewModel.CustomersId !== 0; ///lalu tambbahkan validate ke customer textbox
+            }, "Please Select valid customers");
+
+            $.validator.addMethod("atLeastOneMovie", function () {
+                return viewModel.MoviesId.length > 0;
+            },"please Select at least 1 movie");
+
+            var validator = $("#NewRental").validate({
+                submitHandler: function () {
+                    //e.preventDefault(); /// untuk menghindari submit normal dri html command biasa submit(html tradisional)
+
+                    $.ajax({
+                        url: "/api/newrentals",
+                        method: "post",
+                        data: viewModel
+                    })
+                        .done(function (e, customer) {
+                            console.log(viewModel);
+                            toastr.success("Rental Recorded");
+
+                            $("#customer").typeahead("val", "");   /////untuk restart form
+                            $("#movie").typeahead("val", "");
+                            $("#movies").empty();
+
+                            viewModel = { MoviesId: [] };
+                            validator.resetForm();
+
+                            var tables = $("#rentals").DataTable({
+                                ajax: {
+                                    url: "/api/newrentals/" + cusId + "/allrent",
+                                    method: "GET",
+                                    dataSrc: ""
+                                },
+                                columns: [
+                                    {
+                                        data: "customer.name"
+                                    },
+                                    {
+                                        data: "customer.membershipType.name"
+                                    },
+                                    {
+                                        data:"dateRented"
+                                    },
+                                    {
+                                        data: "dateReturned",
+                                        render: function (data) {
+                                            if (data == null)
+                                                return "<p>Not Returned Yet</p>"
+                                            return "<p>" + data + "</p>"
+                                        }
+                                    },
+                                    {
+                                        data: "movie.name"
+                                    },
+                                    {
+                                        data: "movie.rentalPrice"
+                                    },
+                                ]
+                            });
+                        })
+                        .fail(function () {
+                            toastr.error("Error Submiting Rental");
+                        });
+                    return false;
+                }
+            });
+        });
+    </script>
+}
+

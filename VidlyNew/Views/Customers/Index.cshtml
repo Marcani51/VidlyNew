@@ -1,0 +1,112 @@
+﻿@model IEnumerable<VidlyNew.Models.Customer>
+@{
+    ViewBag.Title = "Customers";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>Cutomers</h2>
+@*if (!Model.Any())
+    {
+        <p>we do not have any customers</p>
+    }
+    else
+    {
+        SUDAH TIDAK PERLU KARENA TIDAK PERLU LIST CUSTOMER SUDAH MELALUI RENDER API
+    }*@
+
+<p>
+    @Html.ActionLink("New Customer", "New", "Customers", null, new { @class = "btn btn-primary" })
+</p>
+<table id="customers" class="table table-bordered table-hover">
+    <!--TABLE TIDAK HILANG UNTUK PLACE HOLDER DATA TABLE-->
+    <thead>
+        <tr>
+            <th>Customer</th>
+            <th>Membership Type (Payment)</th>
+            <th>Discount Rate</th>
+            <th>Delete</th>
+        </tr>
+    </thead>
+    <tbody>
+        @*foreach (var customer in Model)
+            {
+                <tr>
+                    <td>
+                        @Html.ActionLink(customer.Name, "Edit", "Customers", new { id = customer.Id }, null)
+                    </td>
+                    <td>
+                        @customer.MembershipType.Name
+                    </td>
+                    <td>
+                        @customer.MembershipType.DiscountRate%
+                    </td>
+                    <td>
+                        <button data-customer-id="@customer.Id" class="btn-link js-delete">Delete</button>
+                    </td>
+                </tr>
+
+                SUDAH TIDAK PERLU KARENA SUDAH DIRENDER LEWAT API (SECTION SCRIPT)
+
+            }*@
+    </tbody>
+</table>
+
+@section scripts
+    {
+    <script>
+        $(document).ready(function () {
+    var table = $("#customers").DataTable({
+                ajax: {   //// untuk membuat route ke api dengan rangkaian datasrc
+                    url: "/api/customers",
+                    method : "GET",
+                    dataSrc: ""
+                },
+                columns: [
+                    {
+                        data: "name",////nama dri customer
+                        render: function (data, type, customer) { ////melakukan rendering untuk datatables dari data, tipe, dan baris
+                            return "<a href='/customers/edit/" + customer.id + "'>" + customer.name + "</a>";
+                            ////linknya akan seperti ini= /customers/edit/1/marcel
+                        }
+                    },
+                    {
+                        data: "membershipType.name" ///seharusnya membershipType.name tapi kan tidak ada
+                    },
+                    {
+                        data: "membershipType.discountRate",
+                        render: function (data) {
+                            return "<td>" + data + " %</td>";
+                        }
+                    },
+                    {
+                        data: "id",
+                        render: function (data) { //didalamnya cmn mau diambil id, jdi tidak perlu memilih lgi includenya
+                            return "<button class='btn-link js-delete' data-customer-id=" + data + ">Delete</button>";
+                        }
+                    }
+                ]
+
+            });
+
+            //////////////UNTUK API DELETE BUTTON RESPON//////////
+            $("#customers").on("click", ".js-delete", function () { ///// jadi saat click handler, ada filter yg memiliki atribute .js-delete(menghemat memory)
+                var button = $(this);
+
+                bootbox.confirm("Are you sure to delete this customer?", function (result) {
+                    if (result) {
+                        $.ajax({
+                            url: "/api/customers/" + button.attr("data-customer-id"),
+                            method: "DELETE",
+                            success: function () {
+                                table.row(button.parents("tr")).remove().draw();
+                                //button.parents("tr").remove(); cuman pada tampilan bukan pada internal tabel
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+}
+
+
